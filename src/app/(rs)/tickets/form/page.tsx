@@ -1,87 +1,145 @@
-import { getCustomer } from "@/lib/queries/getCustomers"; // Import function to fetch customer details
-import { getTicket } from "@/lib/queries/getTicket"; // Import function to fetch ticket details
-import { BackButton } from "@/components/BackButton"; // Import BackButton component for navigation
-import * as Sentry from "@sentry/nextjs"; // Import Sentry for error tracking
-import TicketForm from "@/app/(rs)/tickets/form/TicketForm"; // Import TicketForm component
+import { getCustomer } from "@/lib/queries/getCustomers";
+import { getTicket } from "@/lib/queries/getTicket";
+import { BackButton } from "@/components/BackButton";
+import * as Sentry from "@sentry/nextjs";
+import TicketForm from "@/app/(rs)/tickets/form/TicketForm";
 
-const TicketFormPage = async ({
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+
+import { Users, init as kindeInit } from "@kinde/management-api-js";
+
+export async function generateMetadata({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | undefined }>;
-}) => {
+}) {
+  const { customerId, ticketId } = await searchParams;
+
+  if (!customerId && !ticketId)
+    return {
+      title: "Missing Ticket ID or Customer ID",
+    };
+
+  if (customerId)
+    return {
+      title: `New Ticket for Customer #${customerId}`,
+    };
+
+  if (ticketId)
+    return {
+      title: `Edit Ticket #${ticketId}`,
+    };
+}
+
+export default async function TicketFormPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | undefined }>;
+}) {
   try {
-    const { customerId, ticketId } = await searchParams; // Extract customerId and ticketId from search parameters
+    const { customerId, ticketId } = await searchParams;
 
     if (!customerId && !ticketId) {
-      // If both IDs are missing, display an error message
       return (
         <>
           <h2 className="text-2xl mb-2">
             Ticket ID or Customer ID required to load ticket form
           </h2>
-          <BackButton title="Go Back" />
+          <BackButton title="Go Back" variant="default" />
         </>
       );
     }
 
-    // If customerId is provided, load the customer details
+    const { getPermission, getUser } = getKindeServerSession();
+    const [managerPermission, user] = await Promise.all([
+      getPermission("manager"),
+      getUser(),
+    ]);
+    const isManager = managerPermission?.isGranted;
+
+    // New ticket form
     if (customerId) {
-      const customer = await getCustomer(parseInt(customerId)); // Fetch customer details
+      const customer = await getCustomer(parseInt(customerId));
 
       if (!customer) {
-        // If customer is not found, show an error message
         return (
           <>
             <h2 className="text-2xl mb-2">
-              Customer ID # {customerId} not found
+              Customer ID #{customerId} not found
             </h2>
-            <BackButton title="Go Back" />
+            <BackButton title="Go Back" variant="default" />
           </>
         );
       }
 
       if (!customer.active) {
-        // If the customer is inactive, show an error message
         return (
           <>
             <h2 className="text-2xl mb-2">
-              Customer ID # {customerId} is not active
+              Customer ID #{customerId} is not active.
             </h2>
-            <BackButton title="Go Back" />
+            <BackButton title="Go Back" variant="default" />
           </>
         );
       }
 
-      console.log(customer); // Debugging log
-      return <TicketForm customer={customer} />; // Return TicketForm for a new ticket
+      // return ticket form
+      if (isManager) {
+        kindeInit(); // Initializes the Kinde Management API
+        const { users } = await Users.getUsers();
+
+        const techs = users
+          ? users.map((user) => ({ id: user.email!, description: user.email! }))
+          : [];
+
+        return <TicketForm customer={customer} techs={techs} />;
+      } else {
+        return <TicketForm customer={customer} />;
+      }
     }
 
-    // If ticketId is provided, load the ticket details
+    // Edit ticket form
     if (ticketId) {
-      const ticket = await getTicket(parseInt(ticketId)); // Fetch ticket details
+      const ticket = await getTicket(parseInt(ticketId));
 
       if (!ticket) {
-        // If ticket is not found, show an error message
         return (
           <>
-            <h2 className="text-2xl mb-2">Ticket ID # {ticketId} not found</h2>
-            <BackButton title="Go Back" />
+            <h2 className="text-2xl mb-2">Ticket ID #{ticketId} not found</h2>
+            <BackButton title="Go Back" variant="default" />
           </>
         );
       }
 
-      const customer = await getCustomer(ticket.customerId); // Fetch the customer associated with the ticket
+      const customer = await getCustomer(ticket.customerId);
 
-      console.log("ticket: ", ticket); // Debugging log
-      console.log("customer: ", customer); // Debugging log
-      return <TicketForm customer={customer} ticket={ticket} />; // Return TicketForm for editing
+      // return ticket form
+      if (isManager) {
+        kindeInit(); // Initializes the Kinde Management API
+        const { users } = await Users.getUsers();
+
+        const techs = users
+          ? users.map((user) => ({ id: user.email!, description: user.email! }))
+          : [];
+
+        return <TicketForm customer={customer} ticket={ticket} techs={techs} />;
+      } else {
+        const isEditable =
+          user.email?.toLowerCase() === ticket.tech.toLowerCase();
+
+        return (
+          <TicketForm
+            customer={customer}
+            ticket={ticket}
+            isEditable={isEditable}
+          />
+        );
+      }
     }
-  } catch (err) {
-    if (err instanceof Error) {
-      Sentry.captureException(err); // Capture errors using Sentry
-      throw err; // Rethrow error for further handling
+  } catch (e) {
+    if (e instanceof Error) {
+      Sentry.captureException(e);
+      throw e;
     }
   }
-};
-
-export default TicketFormPage; // Export TicketFormPage component
+}

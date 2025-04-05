@@ -46,7 +46,7 @@ export function InputWithLabel<S>({
           <FormControl>
             <Input
               id={nameInSchema} // Sets the input ID for accessibility
-              className={`w-full max-w-xs disabled:text-blue-500 dark:disabled:text-green-500 disabled:opacity-75 ${className}`}
+              className={`w-full max-w-xs disabled:text-blue-500 dark:disabled:text-yello-500 disabled:opacity-75 ${className}`}
               {...props} // Spreads additional input attributes
               {...field} // Connects field state from React Hook Form
             />

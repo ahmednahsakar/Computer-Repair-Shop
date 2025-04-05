@@ -54,7 +54,7 @@ export function TextAreaWithLabel<S>({
             {/* Wrapper for the textarea input */}
             <Textarea
               id={nameInSchema} // Unique identifier for accessibility
-              className={className} // Applies custom CSS class if provided
+              className={`disabled:text-blue-500 dark:disabled:text-yello-500 disabled:opacity-75 ${className}`} // Applies custom CSS class if provided
               {...props} // Passes additional textarea attributes
               {...field} // Connects the field to React Hook Form (manages value, onChange, etc.)
             />

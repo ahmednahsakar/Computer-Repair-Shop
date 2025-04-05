@@ -17,6 +17,7 @@ type Props<S> = {
   fieldTitle: string; // The label for the checkbox
   nameInSchema: keyof S & string; // The name of the field in the schema
   message: string; // A message displayed next to the checkbox
+  disabled?: boolean;
 };
 
 // CheckboxWithLabel component: A reusable checkbox input field with a label and validation support
@@ -24,6 +25,7 @@ export function CheckboxWithLabel<S>({
   fieldTitle,
   nameInSchema,
   message,
+  disabled = false,
 }: Props<S>) {
   const form = useFormContext(); // Retrieves the form context to access form state and control
 
@@ -49,6 +51,7 @@ export function CheckboxWithLabel<S>({
                 {...field} // Spreads field properties from react-hook-form
                 checked={field.value} // Binds checkbox state to form value
                 onCheckedChange={field.onChange} // Updates form state on change
+                disabled={disabled}
               />
             </FormControl>
             {message} {/* Displays the provided message next to the checkbox */}

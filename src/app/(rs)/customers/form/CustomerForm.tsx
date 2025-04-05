@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { InputWithLabel } from "@/components/inputs/InputWithLabel";
 import { TextAreaWithLabel } from "@/components/inputs/TextAreaWithLabel";
 import { SelectWithLabel } from "@/components/inputs/SelectWithLable";
+import { CheckboxWithLabel } from "@/components/inputs/CheckboxWithLabel";
+
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+
 import { StatesArray } from "@/constants/StatesArray";
 
 // Import Zod schemas and types for customer validation
@@ -29,6 +33,9 @@ type Props = {
  * Uses react-hook-form for form management and validation via Zod.
  */
 export default function CustomerForm({ customer }: Props) {
+  const { getPermission, isLoading } = useKindeBrowserClient();
+  const isManager = !isLoading && getPermission("manager")?.isGranted;
+
   // Define default values for the form, using existing customer data if available
   const defaultValues: insertCustomerSchemaType = {
     id: customer?.id ?? 0,
@@ -42,6 +49,7 @@ export default function CustomerForm({ customer }: Props) {
     phone: customer?.phone ?? "",
     email: customer?.email ?? "",
     notes: customer?.notes ?? "",
+    active: customer?.active ?? true,
   };
 
   // Initialize form with react-hook-form and apply validation schema
@@ -127,6 +135,16 @@ export default function CustomerForm({ customer }: Props) {
               nameInSchema="notes"
               className="h-40"
             />
+
+            {isLoading ? (
+              <p>Loading...</p>
+            ) : isManager && customer?.id ? (
+              <CheckboxWithLabel<insertCustomerSchemaType>
+                fieldTitle="Active"
+                nameInSchema="active"
+                message="Yes"
+              />
+            ) : null}
 
             <div className="flex gap-2">
               <Button
